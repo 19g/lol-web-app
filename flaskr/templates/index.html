@@ -1,26 +1,28 @@
 <html>
-  <style>
-    body{ 
-      font-size: 15pt;
-      font-family: arial;
+<style>
+    body{
+        font-size: 15pt;
+        font-family: arial;
     }
-  </style>
+</style>
 
 
 <body>
-  <h1>Some famous Computer Scientists</h1>
-  <div>{{data}}</div>
+<h1>List of Graham's favorite computer scientists</h1>
+<div>{{data}}</div>
 
-  <div>
+<div>
     {% for n in data %}
     <div>{{n}}</div>
     {% endfor %}
-  </div>
+</div>
 
-<p><a href="another">Go to the other page</a></p>
+<p><a href="another.html">Go to the other page</a></p>
+<p><a href="home.html">Go to the home page</a></p>
+
 
 <form method="POST" action="/add">
-<p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>
+    <p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>
 </form>
 
 </body>
