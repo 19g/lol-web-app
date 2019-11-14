@@ -1,39 +1,24 @@
-<!doctype html>
-<html>
-<title>LOL Database</title>
-<head>
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-  <script>
-    $(function(){
-      $("#navbar").load("navbar.html");
-    });
-  </script>
-
-  <style>
-    .search-buffer {
-      margin-top: 175px;
-    }
-    .search-title {
-      font-size: 60px;
-      font-family: "Comic Sans MS";
-      /*letter-spacing: -1px;*/
-    }
-  </style>
-</head>
-
-<body>
-  <div id="navbar"></div>
-  <div class="container search-buffer">
-    <h1 class="text-center search-title mb-3">LOL Database</h1>
-    <form class="form-inline justify-content-center">
-      <input class="form-control col-lg-5 mr-2" type="search" placeholder="Enter Summoner Name">
-      <button class="btn btn-outline-success" type="submit">Search</button>
-    </form>
-    <p class="text-center mt-3" style="font-size:10px">By Jarrett Ross and Graham Stubbs</p>
-  </div>
-
-
-
-</body>
-</html>
-
+{% extends "navbar.html" %}
+{% block title %}LOL Database{% endblock %}
+{% block head2 %}
+<style>
+  .search-buffer {
+    margin-top: 175px;
+  }
+  .search-title {
+    font-size: 60px;
+    {#font-family: "Comic Sans MS";#}
+    /*letter-spacing: -1px;*/
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container search-buffer">
+  <h1 class="text-center search-title mb-3">LOL Database</h1>
+  <form class="form-inline justify-content-center">
+    <input class="form-control col-lg-9 mr-2" type="search" placeholder="Enter Summoner Name">
+    <button class="btn btn-outline-success" type="submit">Search</button>
+  </form>
+  <p class="text-center mt-3" style="font-size:10px">By Jarrett Ross and Graham Stubbs</p>
+</div>
+{% endblock %}

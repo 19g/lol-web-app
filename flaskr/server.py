@@ -13,25 +13,11 @@ from sqlalchemy import *
 from sqlalchemy.pool import NullPool
 from flask import Flask, request, render_template, g, redirect, Response
 
-tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
-app = Flask(__name__, template_folder=tmpl_dir)
+# tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+# sttc_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+app = Flask(__name__)
 
-#
-# The following is a dummy URI that does not connect to a valid database. You will need to modify it to connect to your Part 2 database in order to use the data.
-#
-# XXX: The URI should be in the format of: 
-#
-#     postgresql://USER:PASSWORD@35.243.220.243/proj1part2
-#
-# For example, if you had username gravano and password foobar, then the following line would be:
-#
-#     DATABASEURI = "postgresql://gravano:foobar@35.243.220.243/proj1part2"
-#
 DATABASEURI = "postgresql://jcr2198:garen@35.243.220.243/proj1part2"
-
-#
-# This line creates a database engine that knows how to connect to the URI above.
-#
 engine = create_engine(DATABASEURI)
 
 #
@@ -48,12 +34,12 @@ engine.execute("""INSERT INTO test(name) VALUES ('grace hopper'), ('alan turing'
 @app.before_request
 def before_request():
     """
-  This function is run at the beginning of every web request 
-  (every time you enter an address in the web browser).
-  We use it to setup a database connection that can be used throughout the request.
+     This function is run at the beginning of every web request
+    (every time you enter an address in the web browser).
+     We use it to setup a database connection that can be used throughout the request.
 
-  The variable g is globally accessible.
-  """
+    The variable g is globally accessible.
+    """
     try:
         g.conn = engine.connect()
     except:
@@ -66,9 +52,9 @@ def before_request():
 @app.teardown_request
 def teardown_request(exception):
     """
-  At the end of the web request, this makes sure to close the database connection.
-  If you don't, the database could run out of memory!
-  """
+    At the end of the web request, this makes sure to close the database connection.
+    If you don't, the database could run out of memory!
+    """
     try:
         g.conn.close()
     except Exception as e:
@@ -88,7 +74,7 @@ def teardown_request(exception):
 # see for routing: http://flask.pocoo.org/docs/0.10/quickstart/#routing
 # see for decorators: http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/
 #
-@app.route('/')
+@app.route('/index')
 def index():
     """
   request is a special object that Flask provides to access web request information:
@@ -147,17 +133,10 @@ def index():
     return render_template("index.html", **context)
 
 
-#
-# This is an example of a different path.  You can see it at:
-# 
-#     localhost:8111/another
-#
-# Notice that the function name is another() rather than index()
-# The functions for each app.route need to have different names
-#
-@app.route('/another')
-def another():
-    return render_template("another.html")
+@app.route('/home')
+@app.route('/')
+def home():
+    return render_template("home.html")
 
 
 # Example of adding new data to the database
@@ -168,15 +147,8 @@ def add():
     return redirect('/')
 
 
-@app.route('/login')
-def login():
-    abort(401)
-    this_is_never_executed()
-
-
 if __name__ == "__main__":
     import click
-
 
     @click.command()
     @click.option('--debug', is_flag=True)
@@ -184,21 +156,8 @@ if __name__ == "__main__":
     @click.argument('HOST', default='0.0.0.0')
     @click.argument('PORT', default=8111, type=int)
     def run(debug, threaded, host, port):
-        """
-    This function handles command line parameters.
-    Run the server using:
-
-        python server.py
-
-    Show the help text using:
-
-        python server.py --help
-
-    """
-
         HOST, PORT = host, port
         print("running on %s:%d" % (HOST, PORT))
         app.run(host=HOST, port=PORT, debug=debug, threaded=threaded)
-
 
     run()
