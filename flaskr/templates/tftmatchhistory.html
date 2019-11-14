@@ -1,12 +1,20 @@
 {% extends "profile.html" %}
 {% block content %}
-<form>
-
-
-</form>
-<table>
+<a href="/analyzeTft?summonerName={{summoner_name}}">Analyze TFT Match History</a>
+{% block analysis %}
+{% endblock %}
+<table style="border-collapse:collapse;border: 1px solid black;">
+  <tr style="border-collapse:collapse;border: 1px solid black;">
+    <td style="border-collapse:collapse;border: 1px solid black;">Placement</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Round Eliminated</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Date</td>
+  </tr>
   {% for n in data %}
-  <tr>{{n}}</tr>
+  <tr style="border-collapse:collapse;border: 1px solid black;">
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.placement}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.last_round}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.game_datetime}}</td>
+  </tr>
   {% endfor %}
 </table>
 
