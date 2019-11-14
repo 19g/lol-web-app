@@ -181,6 +181,21 @@ def analyze_tft(puuid):
     return render_template("tftmatchhistory.html", puuid)
 
 
+@app.route('/srMatchHistory', methods=['GET'])
+def populate_sr_match_history():
+    return render_template('profile.html')
+
+
+@app.route('analyzeSr', methods=['GET'])
+def analyze_sr_match_history():
+    return render_template('srmatchhistory.html')
+
+
+@app.route('/srMatchHistory/show', methods=['GET'])
+def display_sr_match_history():
+    return render_template('sranalysis.html')
+
+
 def add_summoner(id, type):
     if type == "puuid":
         response = calls.get_summoner_by_puuid(id)
