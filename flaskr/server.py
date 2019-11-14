@@ -17,6 +17,10 @@ engine = create_engine(DATABASEURI)
 CURRENT_PATCH = "9.22.1/"
 DATADRAGON_ENDPOINT = "http://ddragon.leagueoflegends.com/cdn/" + CURRENT_PATCH
 
+# for SR Match History:
+BEGIN_IDX = 0
+END_IDX   = 20
+
 @app.before_request
 def before_request():
     """
@@ -130,6 +134,25 @@ def populate_tft_match_history():
                 #      'items': unit["items"]}
                 # u_all.append(u)
     return render_template("profile.html", summoner_name=summoner_name)
+
+
+@app.route('/srMatchHistory', methods=['GET'])
+def populate_sr_match_history():
+    summoner_name = request.args.get('summonerName')
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    e_a_id = ''
+    for x in cursor:
+        e_a_id = x['encrypted_account_id']
+    cursor.close()
+    response = calls.get_sr_match_list(e_a_id, BEGIN_IDX, END_IDX)
+    if response.status_code != 200:
+        return render_template("/error.html")
+    sid = response.json()
+    for i in sid:
+        print(sid);
+
+    return render_template("profile.html", summoner_name=summoner_name)
+
 
 
 @app.route('/tftMatchHistory/show', methods=['GET'])
