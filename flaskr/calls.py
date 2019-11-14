@@ -18,19 +18,19 @@ s.headers.update({"Accept-Charset": "application/x-www-form-url-encoded; charset
 def get_free_champions():
     url = endpoint_na1 + "/lol/platform/v3/champion-rotations"
     response = s.get(url)
-    return response.text
+    return response
 
 
 def get_summoner_info(summoner_name):
     url = endpoint_na1 + "/lol/summoner/v4/summoners/by-name/" + summoner_name
     response = s.get(url)
-    return response.text
+    return response
 
 
 def get_champion_masteries(encrypted_summoner_id):
     url = endpoint_na1 + "/lol/champion-mastery/v4/champion-masteries/by-summoner/" + encrypted_summoner_id
     response = s.get(url)
-    return response.text  # returns json object, need to parse that object
+    return response
 
 
 def get_ranks(encrypted_summoner_id):

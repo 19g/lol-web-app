@@ -1,0 +1,9 @@
+{% extends "navbar.html" %}
+{% block title %}{{summoner_name}}{% endblock %}
+{% block content %}
+<div class="container search-buffer">
+  <h1>{{summoner_name}}</h1>
+  <p>Level: {{summoner_level}}</p>
+  <img src={{profile_icon}}>
+</div>
+{% endblock %}

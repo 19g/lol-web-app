@@ -8,17 +8,17 @@
   .search-title {
     font-size: 60px;
     {#font-family: "Comic Sans MS";#}
-    /*letter-spacing: -1px;*/
   }
 </style>
 {% endblock %}
 {% block content %}
 <div class="container search-buffer">
   <h1 class="text-center search-title mb-3">LOL Database</h1>
-  <form class="form-inline justify-content-center">
-    <input class="form-control col-lg-9 mr-2" type="search" placeholder="Enter Summoner Name">
+  <form class="form-inline justify-content-center" method="GET" action="/getSummoner">
+    {# col-lg-5#}
+    <input class="form-control mr-2" style="min-width:300px" type="search" name="summonerName" placeholder="Enter Summoner Name">
     <button class="btn btn-outline-success" type="submit">Search</button>
   </form>
-  <p class="text-center mt-3" style="font-size:10px">By Jarrett Ross and Graham Stubbs</p>
+  <p class="text-center mt-3" style="font-size:12px">By Jarrett Ross and Graham Stubbs</p>
 </div>
 {% endblock %}

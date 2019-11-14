@@ -1,24 +1,17 @@
-"""
-Columbia's COMS W4111.001 Introduction to Databases
-Example Webserver
-To run locally:
-    python server.py
-Go to http://localhost:8111 in your browser.
-A debugger such as "pdb" may be helpful for debugging.
-Read about it online.
-"""
-import os
-# accessible as a variable in index.html:
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
 from flask import Flask, request, render_template, g, redirect, Response
+from flaskr import config, calls
+import requests
+import os
 
-# tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
-# sttc_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 app = Flask(__name__)
 
-DATABASEURI = "postgresql://jcr2198:garen@35.243.220.243/proj1part2"
+DATABASEURI = "postgresql://" + config.sql_user + ":" + config.sql_password + "@35.243.220.243/proj1part2"
 engine = create_engine(DATABASEURI)
+
+PROFILE_ICON_FOLDER = os.path.join('static', 'datadragon/9.22.1/img/profileicon/')
+app.config['ICON_FOLDER'] = PROFILE_ICON_FOLDER
 
 #
 # Example of running queries in your database
@@ -51,29 +44,13 @@ def before_request():
 
 @app.teardown_request
 def teardown_request(exception):
-    """
-    At the end of the web request, this makes sure to close the database connection.
-    If you don't, the database could run out of memory!
-    """
     try:
         g.conn.close()
     except Exception as e:
+        print(e)
         pass
 
 
-#
-# @app.route is a decorator around index() that means:
-#   run index() whenever the user tries to access the "/" path using a GET request
-#
-# If you wanted the user to go to, for example, localhost:8111/foobar/ with POST or GET then you could use:
-#
-#       @app.route("/foobar/", methods=["POST", "GET"])
-#
-# PROTIP: (the trailing / in the path is important)
-# 
-# see for routing: http://flask.pocoo.org/docs/0.10/quickstart/#routing
-# see for decorators: http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/
-#
 @app.route('/index')
 def index():
     """
@@ -147,17 +124,47 @@ def add():
     return redirect('/')
 
 
+@app.route('/getSummoner', methods=['GET'])
+def get_summoner():
+    summoner_name = request.args.get('summonerName')
+    # check if summoner name is already in database
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    results = []
+    for x in cursor:
+        results.append(x['summoner_name'])
+        results.append(x['profile_icon'])
+        results.append(x['summoner_level'])
+    # if not, add to database
+    if len(results) == 0:
+        cursor.close()
+        response = calls.get_summoner_info(summoner_name)
+        print(response.text)
+        if response.status_code != 200:
+            return render_template("/error.html")
+        sid = response.json()
+        g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s)',
+                       sid["name"], sid["profileIconId"], sid["summonerLevel"],
+                       sid["id"], sid["accountId"], sid["puuid"])
+        icon_filename = str(sid["profileIconId"]) + ".png"
+        print(icon_filename)
+        icon_path = os.path.join(app.config['ICON_FOLDER'], icon_filename)
+        return render_template("/profile.html", summoner_name=sid["name"], profile_icon=icon_path, summoner_level=sid["summonerLevel"])
+    else:
+        icon_filename = str(results[1]) + ".png"
+        icon_path = os.path.join(app.config['ICON_FOLDER'], icon_filename)
+        cursor.close()
+        return render_template("/profile.html", summoner_name=results[0], profile_icon=icon_path, summoner_level=results[2])
+
 if __name__ == "__main__":
     import click
-
     @click.command()
     @click.option('--debug', is_flag=True)
     @click.option('--threaded', is_flag=True)
     @click.argument('HOST', default='0.0.0.0')
     @click.argument('PORT', default=8111, type=int)
     def run(debug, threaded, host, port):
-        HOST, PORT = host, port
-        print("running on %s:%d" % (HOST, PORT))
-        app.run(host=HOST, port=PORT, debug=debug, threaded=threaded)
-
+        print("running on %s:%d" % (host, port))
+        app.jinja_env.auto_reload = True  # so we don't have to re-run file on every change
+        app.config['TEMPLATES_AUTO_RELOAD'] = True
+        app.run(host=host, port=port, debug=debug, threaded=threaded)
     run()
