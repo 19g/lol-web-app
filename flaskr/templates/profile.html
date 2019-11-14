@@ -1,14 +1,16 @@
 {% extends "navbar.html" %}
 {% block title %}{{summoner_name}}{% endblock %}
 {% block content %}
-<div class="container search-buffer">
-  <h1>{{summoner_name}}</h1>
-  <p>Level: {{summoner_level}}</p>
-  <img src={{profile_icon}} style="width:100px;height:100px;">
+<div class="container">
+  <div class="mt-2">
+    <img src={{profile_icon}} style="width:100px;height:100px;"><br>
+    <h1>{{summoner_name}}</h1>
+    <p>Level: {{summoner_level}}</p>
+  </div>
   <div>
-    <a href="/tftMatchHistory?summonerName={{summoner_name}}">Update TFT Match History</a>
-    <a href="/tftMatchHistory/show?summonerName={{summoner_name}}">Show TFT Match History</a>
-    <a href="/srMatchHistory?summonerName={{summoner_name}}">Get SR Match History</a>
+    <a href="/tftMatchHistory?summonerName={{summoner_name}}">Update TFT Match History</a><br>
+    <a href="/tftMatchHistory/show?summonerName={{summoner_name}}">Show TFT Match History</a><br>
+    <a href="/srMatchHistory?summonerName={{summoner_name}}">Get SR Match History</a><br>
   </div>
   <!-- child template -->
   {% block other %}

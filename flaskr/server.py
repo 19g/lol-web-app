@@ -17,24 +17,9 @@ engine = create_engine(DATABASEURI)
 CURRENT_PATCH = "9.22.1/"
 DATADRAGON_ENDPOINT = "http://ddragon.leagueoflegends.com/cdn/" + CURRENT_PATCH
 
-#
-# Example of running queries in your database
-# Note that this will probably not work if you already have a table named 'test' in your database, containing meaningful data. This is only an example showing you how to run queries in your database using SQLAlchemy.
-#
-engine.execute("""CREATE TABLE IF NOT EXISTS test (
-  id serial,
-  name text
-);""")
-engine.execute("""INSERT INTO test(name) VALUES ('grace hopper'), ('alan turing'), ('ada lovelace');""")
-
-
 @app.before_request
 def before_request():
     """
-     This function is run at the beginning of every web request
-    (every time you enter an address in the web browser).
-     We use it to setup a database connection that can be used throughout the request.
-
     The variable g is globally accessible.
     """
     try:
@@ -55,45 +40,11 @@ def teardown_request(exception):
         pass
 
 
-@app.route('/naw')
-def index():
-    """
-  request is a special object that Flask provides to access web request information:
-
-  request.method:   "GET" or "POST"
-  request.form:     if the browser submitted a form, this contains the data in the form
-  request.args:     dictionary of URL arguments, e.g., {a:1, b:2} for http://localhost?a=1&b=2
-
-  See its API: http://flask.pocoo.org/docs/0.10/api/#incoming-request-data
-  """
-
-    # DEBUG: this is debugging code to see what request looks like
-    print(request.args)
-
-    cursor = g.conn.execute("SELECT name FROM test")
-    names = []
-    for result in cursor:
-        names.append(result['name'])  # can also be accessed using result[0]
-    cursor.close()
-
-    context = dict(data=names)
-
-    return render_template("index.html", **context)
-
-
 @app.route('/home')
 @app.route('/index')
 @app.route('/')
 def home():
     return render_template("home.html")
-
-
-# Example of adding new data to the database
-@app.route('/add', methods=['POST'])
-def add():
-    name = request.form['name']
-    g.conn.execute('INSERT INTO test(name) VALUES (%s)', name)
-    return redirect('/')
 
 
 @app.route('/getSummoner', methods=['GET'])
@@ -178,7 +129,7 @@ def populate_tft_match_history():
                 # u = {'match_id': match["metadata"]["match_id"], 'summoner_name': unit["name"], 'tier': unit["tier"],
                 #      'items': unit["items"]}
                 # u_all.append(u)
-    return render_template("profile.html")
+    return render_template("profile.html", summoner_name=summoner_name)
 
 
 @app.route('/tftMatchHistory/show', methods=['GET'])
@@ -203,23 +154,27 @@ def display_tft_match_history():
     cursor2.close()
     cursor.close()
     context = dict(data=matches)
-    return render_template("tftmatchhistory.html", **context)
+    return render_template("tftmatchhistory.html", **context, summoner_name=summoner_name)
 
 
 @app.route('/analyzeTft', methods=['GET'])
 def analyze_tft_match_history():
     summoner_name = request.args.get('summonerName')
+    print(summoner_name)
     cursor = g.conn.execute('SELECT * FROM participates_in_tft WHERE summoner_name=%s', summoner_name)
     avg_place = 0.0
     avg_last_round = 0.0
     i = 0.0
     for x in cursor:
-        avg_place += x['placement']
-        avg_last_round += x['last_round']
-        i += 1.0
+        avg_place += float(x['placement'])
+        avg_last_round += float(x['last_round'])
+        print(float(avg_place))
+        i += 1
     avg_place /= i
     avg_last_round /= i
-    return render_template("tftanalysis.html", avg_place=avg_place, avg_last_round=avg_last_round)
+    print(float(avg_place))
+    return render_template("tftanalysis.html", avg_place=str(avg_place), avg_last_round=str(avg_last_round),
+                           summoner_name=summoner_name)
 
 
 def analyze_tft(puuid):
