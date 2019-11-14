@@ -4,6 +4,11 @@
 <div class="container search-buffer">
   <h1>{{summoner_name}}</h1>
   <p>Level: {{summoner_level}}</p>
-  <img src={{profile_icon}}>
+  <img src={{profile_icon}} style="width:100px;height:100px;">
+  <a href="/tftMatchHistory?summonerName={{summoner_name}}">Get TFT Match History</a>
+
+  <!-- child template -->
+  {% block other %}
+  {% endblock %}
 </div>
 {% endblock %}

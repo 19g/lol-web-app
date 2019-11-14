@@ -36,29 +36,29 @@ def get_champion_masteries(encrypted_summoner_id):
 def get_ranks(encrypted_summoner_id):
     url = endpoint_na1 + "/lol/league/v4/entries/by-summoner/" + encrypted_summoner_id
     response = s.get(url)
-    return response.text
+    return response
 
 
 def get_sr_match_list(encrypted_account_id, begin_index, end_index):
     url = endpoint_na1 + "/lol/match/v4/matchlists/by-account/" + str(encrypted_account_id)
     url += "?endIndex=" + str(end_index) + "&beginIndex=" + str(begin_index)
     response = s.get(url)
-    return response.text
+    return response
 
 
 def get_sr_match(game_id):
     url = endpoint_na1 + "/lol/match/v4/timelines/by-match/" + game_id
     response = s.get(url)
-    return response.text
+    return response
 
 
 def get_tft_match_list(puuid):
     url = endpoint_americas + "/tft/match/v1/matches/by-puuid/" + str(puuid) + "/ids"
     response = s.get(url)
-    return response.text
+    return response
 
 
 def get_tft_match(match_id):
     url = endpoint_americas + "/tft/match/v1/matches/" + str(match_id)
     response = s.get(url)
-    return response.text
+    return response

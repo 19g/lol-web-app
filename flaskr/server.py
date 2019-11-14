@@ -4,6 +4,7 @@ from flask import Flask, request, render_template, g, redirect, Response
 from flaskr import config, calls
 import requests
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -52,7 +53,7 @@ def teardown_request(exception):
         pass
 
 
-@app.route('/index')
+@app.route('/naw')
 def index():
     """
   request is a special object that Flask provides to access web request information:
@@ -112,6 +113,7 @@ def index():
 
 
 @app.route('/home')
+@app.route('/index')
 @app.route('/')
 def home():
     return render_template("home.html")
@@ -147,14 +149,86 @@ def get_summoner():
                        sid["name"], sid["profileIconId"], sid["summonerLevel"],
                        sid["id"], sid["accountId"], sid["puuid"])
         icon_uri = DATADRAGON_ENDPOINT + "img/profileicon/" + str(sid["profileIconId"]) + ".png"
-        print(icon_uri)
-
         return render_template("/profile.html", summoner_name=sid["name"], profile_icon=icon_uri, summoner_level=sid["summonerLevel"])
     else:
         icon_uri = DATADRAGON_ENDPOINT + "img/profileicon/" + str(results[1]) + ".png"
-        print(icon_uri)
         cursor.close()
         return render_template("/profile.html", summoner_name=results[0], profile_icon=icon_uri, summoner_level=results[2])
+
+
+@app.route('/tftMatchHistory', methods=['GET'])
+def populate_tft_match_history():
+    summoner_name = request.args.get('summonerName')
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    puuid = ''
+    for x in cursor:
+        puuid = x['puuid']
+    cursor.close()
+    response = calls.get_tft_match_list(puuid)
+    if response.status_code != 200:
+        return render_template("/error.html")
+    sid = response.json()
+    for i in sid:
+        response = calls.get_tft_match(i)
+        match = response.json()
+        # add data to tft_match and either tft_normal or tft_ranked depending on queue id
+        g.conn.execute('INSERT INTO tft_match VALUES (%s, %s) ON CONFLICT(match_id) DO NOTHING',
+                        match["metadata"]["match_id"], match["info"]["game_datetime"])
+        if match["info"]["queue_id"] == 1100:
+            g.conn.execute('INSERT INTO tft_normal VALUES (%s)', match["metadata"]["match_id"])
+        else:
+            g.conn.execute('INSERT INTO tft_ranked VALUES (%s)', match["metadata"]["match_id"])
+        # add to participates_in_tft
+        for participant in match["info"]["participants"]:
+            # get summoner name
+            cursor = g.conn.execute('SELECT * FROM summoner WHERE puuid=%s', participant["puuid"])
+            name = ""
+            for x in cursor:
+                name = x['summoner_name']
+            cursor.close()
+            g.conn.execute('INSERT INTO participates_in_tft VALUES (%s, %s, %s, %s, %s)',
+                        match["metadata"]["match_id"], name, participant["placement"],
+                        participant["last_round"], 1)
+            # add to had_traits
+            for trait in participant["traits"]:
+                g.conn.execute('INSERT INTO had_traits VALUES (%s, %s, %s, %s, %s)',
+                               match["metadata"]["match_id"], name, trait["name"],
+                               trait["tier_current"], trait["num_units"])
+            # add to used_tft_champ
+            for unit in participant["units"]:
+                g.conn.execute('INSERT INTO used_tft_champ VALUES (%s, %s, %s, %s, %s)',
+                               match["metadata"]["match_id"], name, unit["name"],
+                               unit["tier"], unit["items"])
+    return display_tft_match_history(summoner_name)
+
+
+def display_tft_match_history(summoner_name):
+    cursor = g.conn.execute('SELECT * FROM participates_in_tft WHERE summoner_name=%s', summoner_name)
+    placement = []
+    last_round = []
+    companion = []
+    game_datetime = []
+    for x in cursor:
+        placement.append(x['placement'])
+        last_round.append(x['last_round'])
+        companion.append(x['companion'])
+        cursor2 = g.conn.execute('SELECT * FROM tft_match WHERE match_id=%s', x['match_id'])
+        for y in cursor2:
+            dt = int(x['game_datetime'])
+            game_datetime.append(datetime.utcfromtimestamp(dt).strftime('%Y-%m-%d %H:%M:%S'))
+    matches = [{"placement": m, "last_round": n, "companion": o, "game_datetime": p}
+               for m, n, o, p in zip(placement, last_round, companion, game_datetime)]
+    context = dict(data=matches)
+    return render_template("tftmatchhistory.html", **context)
+
+
+
+
+
+
+def analyze_tft(puuid):
+    return render_template("tftmatchhistory.html", puuid)
+
 
 if __name__ == "__main__":
     import click
