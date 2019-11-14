@@ -27,6 +27,12 @@ def get_summoner_info(summoner_name):
     return response
 
 
+def get_summoner_by_puuid(puuid):
+    url = endpoint_na1 + "/lol/summoner/v4/summoners/by-puuid/" + puuid
+    response = s.get(url)
+    return response
+
+
 def get_champion_masteries(encrypted_summoner_id):
     url = endpoint_na1 + "/lol/champion-mastery/v4/champion-masteries/by-summoner/" + encrypted_summoner_id
     response = s.get(url)
@@ -39,7 +45,7 @@ def get_ranks(encrypted_summoner_id):
     return response
 
 
-def get_sr_match_list(encrypted_account_id, begin_index, end_index):
+def get_sr_match_list(encrypted_account_id, begin_index, end_index):  # end - begin < 100
     url = endpoint_na1 + "/lol/match/v4/matchlists/by-account/" + str(encrypted_account_id)
     url += "?endIndex=" + str(end_index) + "&beginIndex=" + str(begin_index)
     response = s.get(url)

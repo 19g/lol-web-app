@@ -5,8 +5,11 @@
   <h1>{{summoner_name}}</h1>
   <p>Level: {{summoner_level}}</p>
   <img src={{profile_icon}} style="width:100px;height:100px;">
-  <a href="/tftMatchHistory?summonerName={{summoner_name}}">Get TFT Match History</a>
-
+  <div>
+    <a href="/tftMatchHistory?summonerName={{summoner_name}}">Update TFT Match History</a>
+    <a href="/tftMatchHistory/show?summonerName={{summoner_name}}">Show TFT Match History</a>
+    <a href="/srMatchHistory?summonerName={{summoner_name}}">Get SR Match History</a>
+  </div>
   <!-- child template -->
   {% block other %}
   {% endblock %}
