@@ -10,8 +10,9 @@ app = Flask(__name__)
 DATABASEURI = "postgresql://" + config.sql_user + ":" + config.sql_password + "@35.243.220.243/proj1part2"
 engine = create_engine(DATABASEURI)
 
-PROFILE_ICON_FOLDER = os.path.join('static', 'datadragon/9.22.1/img/profileicon/')
-app.config['ICON_FOLDER'] = PROFILE_ICON_FOLDER
+# for profile icons
+CURRENT_PATCH = "9.22.1/"
+DATADRAGON_ENDPOINT = "http://ddragon.leagueoflegends.com/cdn/" + CURRENT_PATCH
 
 #
 # Example of running queries in your database
@@ -145,15 +146,15 @@ def get_summoner():
         g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s)',
                        sid["name"], sid["profileIconId"], sid["summonerLevel"],
                        sid["id"], sid["accountId"], sid["puuid"])
-        icon_filename = str(sid["profileIconId"]) + ".png"
-        print(icon_filename)
-        icon_path = os.path.join(app.config['ICON_FOLDER'], icon_filename)
-        return render_template("/profile.html", summoner_name=sid["name"], profile_icon=icon_path, summoner_level=sid["summonerLevel"])
+        icon_uri = DATADRAGON_ENDPOINT + "img/profileicon/" + str(sid["profileIconId"]) + ".png"
+        print(icon_uri)
+
+        return render_template("/profile.html", summoner_name=sid["name"], profile_icon=icon_uri, summoner_level=sid["summonerLevel"])
     else:
-        icon_filename = str(results[1]) + ".png"
-        icon_path = os.path.join(app.config['ICON_FOLDER'], icon_filename)
+        icon_uri = DATADRAGON_ENDPOINT + "img/profileicon/" + str(results[1]) + ".png"
+        print(icon_uri)
         cursor.close()
-        return render_template("/profile.html", summoner_name=results[0], profile_icon=icon_path, summoner_level=results[2])
+        return render_template("/profile.html", summoner_name=results[0], profile_icon=icon_uri, summoner_level=results[2])
 
 if __name__ == "__main__":
     import click
