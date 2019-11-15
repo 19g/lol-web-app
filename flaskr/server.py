@@ -255,6 +255,53 @@ def display_tft_match_history():
     return render_template("tftmatchhistory.html", **context, summoner_name=summoner_name)
 
 
+@app.route('/analyzeSr', methods=['GET'])
+def analyze_sr_match_history():
+    summoner_name = request.args.get('summonerName').casefold()
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    e_sid = cursor[0]['encrypted_summoner_id']
+    wins = 0
+    k = 0
+    d = 0
+    a = 0
+    cs = 0
+    damage = 0
+    gold = 0
+    cursor = g.conn.execute('SELECT * FROM participant_plays_on WHERE summoner_id=%s', e_sid)
+    count = 0
+    for x in cursor:
+        k += x['kills']
+        a += x['assists']
+        d += x['deaths']
+        cs += x['total_minions_killed']
+        damage += x['total_damage_dealt_to_champions']
+        gold += x['gold_earned']
+
+        cursor2 = g.conn.execute('SELECT * FROM team_plays_in WHERE match_id=%s AND team_id=%s',
+                                 x['match_id'], x['team_id'])
+
+        wins += cursor2[0]['win']
+
+        count += 1
+
+    win_rate = float(wins/count)
+    k_avg = float(k/count)
+    d_avg = float(d/count)
+    a_avg = float(a/count)
+    cs_avg = float(cs/count)
+    damage_agv = float(damage/count)
+    gold_avg = float(gold/count)
+    kda = str(k_agv) + "/" + str(d_avg) + "/" + str(a_avg)
+
+    return render_template("sranalysis.html", 
+                           win_rate=str(win_rate), 
+                           kda=kda,
+                           cs_avg=str(cs_avg),
+                           damage_avg=str(damage_avg),
+                           gold_avg=str(gold_avg)
+                           summoner_name=summoner_name)
+
+
 @app.route('/analyzeTft', methods=['GET'])
 def analyze_tft_match_history():
     summoner_name = request.args.get('summonerName').casefold()
@@ -307,3 +354,4 @@ if __name__ == "__main__":
         app.config['TEMPLATES_AUTO_RELOAD'] = True
         app.run(host=host, port=port, debug=debug, threaded=threaded)
     run()
+
