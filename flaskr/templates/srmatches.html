@@ -3,12 +3,12 @@
 {#<a href="/updateChamps?summonerName={{summoner_name}}&icon={{profile_icon}}&lvl={{summoner_level}}">Update Champions</a>#}
 <h1>Search for a match according to the specified criteria:</h1>
 <form action="/srQuery" method="post">
-  <input type="text" placeholder="Summoner Name" name="summoner_id">
+  <input type="text" placeholder="Summoner Name" name="summoner_name">
   <input type="text" placeholder="Min Mastery" name="mastery_min">
   <input type="text" placeholder="Max Mastery" name="mastery_max">
   <input type="text" placeholder="Minimum CS" name="cs">
   <input type="text" placeholder="Minimum Gold" name="gold_earned">
-  <input type="text" placeholder="Game Duration" name="champ_level">
+  <input type="text" placeholder="Champ Level" name="champ_level">
   <button type="submit">Search</button>
 </form>
 {% block analysis %}

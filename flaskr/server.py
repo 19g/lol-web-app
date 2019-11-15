@@ -253,23 +253,19 @@ def add_summoner(s_id, s_type):
 
 @app.route('/champQuery', methods=['POST'])
 def champQuery():
-    print("y")
     mastery_min = request.form.get('mastery_min')
     mastery_max = request.form.get('mastery_max')
     c_id = request.form.get('champ_id')
     if mastery_max == "":
         mastery_max = 7
     if c_id == "":
-        print("1")
         cursor = g.conn.execute('SELECT * FROM owns_champion WHERE mastery>=%s AND mastery<=%s', mastery_min, mastery_max)
     else:
-        print("2")
         cursor = g.conn.execute('SELECT * FROM owns_champion WHERE mastery>=%s AND mastery<=%s AND champion_id=%s', mastery_min, mastery_max, c_id)
     champs = []
     masteries = []
     ftp = []
     for x in cursor:
-        print(x["champion_id"])
         champs.append(x["champion_id"])
         masteries.append(x["mastery"])
         ftp.append(x["free_to_play"])
@@ -277,6 +273,19 @@ def champQuery():
                for m, n, o in zip(champs, masteries, ftp)]
     context = dict(data=results)
     return render_template("champions.html", **context)
+
+
+@app.route('/srQuery', methods=['POST'])
+def srQuery():
+    summoner_name = request.form.get('summoner_name')
+    mastery_min = request.form.get('mastery_min')
+    mastery_max = request.form.get('mastery_max')
+    cs = request.form.get('cd')
+    gold_earned = request.form.get('gold_earned')
+    champ_level = request.form.get('champ_level')
+    cursor = g.conn.execute('SELECT T.win, P.champion_id, P.kills, P.assists, P.deaths, P.champ_level, P.gold_earned, P.total_minions_killed FROM P participant_plays_on, T team_plays_in, C owns_champion WHERE C.mastery>=%s AND C.mastery<=%s AND P.cs>=%s AND P.gold_earned >=%s AND P.champ_level=%s',
+                            mastery_min, mastery_max, cs, gold_earned, champ_level)
+
 
 
 if __name__ == "__main__":
