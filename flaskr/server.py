@@ -255,6 +255,57 @@ def display_tft_match_history():
     return render_template("tftmatchhistory.html", **context, summoner_name=summoner_name)
 
 
+@app.route('/srMatchHistory/show', methods=['GET'])
+def display_sr_match_history():
+    summoner_name = request.args.get('summonerName').casefold()
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    e_sid = cursor[0]['encrypted_summoner_id']
+    cursor = g.conn.execute('SELECT * FROM participant_plays_on WHERE summoner_id=%s', e_sid)
+    team = []
+    champion = []
+    kda = []
+    cs = []
+    gold = []
+    damage = []
+    result = []
+    for x in cursor:
+        team_str = ""
+        if x['team_id'] == 100:
+            team_str = blue
+        else:
+            team_str = red
+        team.append(team_str)
+        team.append(x['team_id'])
+        champion.append(x['champion_id'])
+        kills = x['kills']
+        deaths = x['deaths']
+        assists = x['assists']
+        kda_str = str(kills) + "/" str(deaths) + "/" + str(assists)
+        kda.append(kda_str)
+        cs.append(x['total_minions_killed'])
+        gold.append(x['gold_earned'])
+        damage.append(x['total_damage_dealt_to_champions '])
+
+        cursor2 = g.conn.execute('SELECT * FROM team_plays_in WHERE match_id=%s AND team_id=%s',
+                                 x['match_id'], x['team_id'])
+        win_str = ""
+        if cursor2[0]['win'] == 1:
+            win_str = "Win"
+        else:
+            win_str = "Loss"
+        result.append(win_str)
+
+    matches = [{"team": t, "champ": c, "kda": k, "cs": s, "gold": g, "damage": d, "result":, r}
+               for t, c, k, s, g, d, r in zip(team, kda, cs, gold, damage, result)]
+
+    context = dict(data=matches)
+
+    cursor.close()
+    cursor2.close()
+
+    return render_template("srmatchhistory.html", **context, summoner_name=summoner_name)
+
+
 @app.route('/analyzeSr', methods=['GET'])
 def analyze_sr_match_history():
     summoner_name = request.args.get('summonerName').casefold()
@@ -283,6 +334,9 @@ def analyze_sr_match_history():
         wins += cursor2[0]['win']
 
         count += 1
+
+    cursor.close()
+    cursor2.close()
 
     win_rate = float(wins/count)
     k_avg = float(k/count)
