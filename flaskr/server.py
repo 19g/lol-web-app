@@ -24,7 +24,7 @@ engine = create_engine(DATABASEURI)
 CURRENT_PATCH = "9.22.1/"
 DATADRAGON_ENDPOINT = "http://ddragon.leagueoflegends.com/cdn/" + CURRENT_PATCH
 
-# for SR Match History:
+# for SR Match History (END_IDX - BEGIN_IDX matches at a time pulled frmo api)
 BEGIN_IDX = 0
 END_IDX   = 20
 
@@ -93,6 +93,8 @@ def get_summoner():
 @app.route('/tftMatchHistory', methods=['GET'])
 def populate_tft_match_history():
     summoner_name = request.args.get('summonerName').casefold()
+    icon = request.args.get('icon')
+    lvl = request.args.get('lvl')
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
     puuid = ''
     for x in cursor:
@@ -143,12 +145,15 @@ def populate_tft_match_history():
                 # u = {'match_id': match["metadata"]["match_id"], 'summoner_name': unit["name"], 'tier': unit["tier"],
                 #      'items': unit["items"]}
                 # u_all.append(u)
-    return render_template("profile.html", summoner_name=summoner_name)
+    return render_template("profile.html", summoner_name=summoner_name, profile_icon=icon,
+                           summoner_level=lvl)
 
 
 @app.route('/srMatchHistory', methods=['GET'])
 def populate_sr_match_history():
     summoner_name = request.args.get('summonerName').casefold()
+    icon = request.args.get('icon')
+    lvl = request.args.get('lvl')
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
     e_a_id = ''
     for x in cursor:
@@ -164,69 +169,73 @@ def populate_sr_match_history():
     print(matches)
     print()
     for match in matches:
-        #print("match: ")
-        #print(match)
-        #print()
-        game_id = match['gameId']
+        try:
+            #print("match: ")
+            #print(match)
+            #print()
+            game_id = match['gameId']
 
-        #print("gameId: ")
-        #print(game_id)
-        #print()
-        response = calls.get_sr_match(str(game_id))
-        if response.status_code != 200:
-            return render_template("/error.html")
-        match_data = response.json()
-        #print("match data: ")
-        #print(match_data)
-        #print()
+            #print("gameId: ")
+            #print(game_id)
+            #print()
+            response = calls.get_sr_match(str(game_id))
+            if response.status_code != 200:
+                return render_template("/error.html")
+            match_data = response.json()
+            #print("match data: ")
+            #print(match_data)
+            #print()
 
-        # TODO: game timestamps are longs in Riot API, ints in our database, may need to fix
-        g.conn.execute('INSERT INTO sr_match VALUES (%s, %s, %s, %s) ON CONFLICT(match_id) DO NOTHING',
-                        str(match_data['gameId']), match_data['gameCreation'], 
-                        match_data['gameDuration'], match_data['seasonId']);
+            # TODO: game timestamps are longs in Riot API, ints in our database, may need to fix
+            g.conn.execute('INSERT INTO sr_match VALUES (%s, %s, %s, %s) ON CONFLICT(match_id) DO NOTHING',
+                            str(match_data['gameId']), match_data['gameCreation'],
+                            match_data['gameDuration'], match_data['seasonId']);
 
-        # add to ranked or normal as appropriate:
-        queue_id = match_data['queueId']
-        if (queue_id == 420 or queue_id == 440):  # ranked solo/duo, ranked flex
-            g.conn.execute('INSERT INTO sr_ranked VALUES (%s) ON CONFLICT(match_id) DO NOTHING', 
-                           match_data['gameId'])
-        else:  # normals
-            g.conn.execute('INSERT INTO sr_normal VALUES (%s) ON CONFLICT(match_id) DO NOTHING', 
-                           match_data['gameId'])
+            # add to ranked or normal as appropriate:
+            queue_id = match_data['queueId']
+            if (queue_id == 420 or queue_id == 440):  # ranked solo/duo, ranked flex
+                g.conn.execute('INSERT INTO sr_ranked VALUES (%s) ON CONFLICT(match_id) DO NOTHING',
+                               match_data['gameId'])
+            else:  # normals
+                g.conn.execute('INSERT INTO sr_normal VALUES (%s) ON CONFLICT(match_id) DO NOTHING',
+                               match_data['gameId'])
 
-        # add to team_plays_in:
-        for team in match_data['teams']:
-            win_int = -1
-            if (team['win'] == 'Fail'):
-                win_int = 0
-            else:
-                win_int = 1
-            ban_list = '{ '
-            for ban in team['bans']:
-                ban_list += (str(ban['championId']) + ',')
-            # remove final comma, add closing brace:
-            ban_list = ban_list[:-1] + '}'
-            drag_int = boolstr_to_int(team['firstDragon'])
-            inhib_int = boolstr_to_int(team['firstInhibitor'])
+            # add to team_plays_in:
+            for team in match_data['teams']:
+                win_int = -1
+                if (team['win'] == 'Fail'):
+                    win_int = 0
+                else:
+                    win_int = 1
+                ban_list = '{ '
+                for ban in team['bans']:
+                    ban_list += (str(ban['championId']) + ',')
+                # remove final comma, add closing brace:
+                ban_list = ban_list[:-1] + '}'
+                drag_int = boolstr_to_int(team['firstDragon'])
+                inhib_int = boolstr_to_int(team['firstInhibitor'])
 
-            g.conn.execute('INSERT INTO team_plays_in VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT(match_id, team_id) DO NOTHING',
-                            str(match_data['gameId']), str(team['teamId']),
-                            str(win_int), ban_list, team['towerKills'], team['inhibitorKills'],
-                            team['baronKills'], team['dragonKills'], team['riftHeraldKills'])
+                g.conn.execute('INSERT INTO team_plays_in VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(match_id, team_id) DO NOTHING',
+                                str(match_data['gameId']), str(team['teamId']),
+                                str(win_int), ban_list, team['towerKills'], team['inhibitorKills'],
+                                team['baronKills'], team['dragonKills'])
 
-        # add to participant plays on:
-        for participant in match_data['participants']:
-            p_id = int(participant['participantId'])
-            p_sid = match_data['participantIdentities'][p_id-1]['player']['summonerId']
-            p_stats = participant['stats']
-            g.conn.execute('INSERT INTO participant_plays_on VALUES (%s,%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(match_id, team_id, summoner_id) DO NOTHING',
-                           str(match_data['gameId']), participant['teamId'], p_sid,
-                           participant['championId'], participant['spell1Id'], participant['spell2Id'],
-                           p_stats['visionScore'], p_stats['kills'], p_stats['assists'], p_stats['deaths'],
-                           p_stats['champLevel'], p_stats['goldEarned'], p_stats['totalMinionsKilled'],
-                           p_stats['totalDamageDealtToChampions'])
-
-    return render_template("profile.html", summoner_name=summoner_name)
+            # add to participant plays on:
+            for participant in match_data['participants']:
+                p_id = int(participant['participantId'])
+                print(match_data['participantIdentities'][p_id-1]['player'])
+                p_sid = match_data['participantIdentities'][p_id-1]['player']['summonerId']
+                p_stats = participant['stats']
+                g.conn.execute('INSERT INTO participant_plays_on VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(match_id, team_id, summoner_id) DO NOTHING',
+                               str(match_data['gameId']), participant['teamId'], p_sid,
+                               participant['championId'], participant['spell1Id'], participant['spell2Id'],
+                               p_stats['visionScore'], p_stats['kills'], p_stats['assists'], p_stats['deaths'],
+                               p_stats['champLevel'], p_stats['goldEarned'], p_stats['totalMinionsKilled'],
+                               p_stats['totalDamageDealtToChampions'])
+        except KeyError as e:
+            print(e)
+    return render_template("profile.html", summoner_name=summoner_name, profile_icon=icon,
+                           summoner_level=lvl)
 
 
 
@@ -382,7 +391,7 @@ def analyze_tft_match_history():
         avg_last_round += float(x['last_round'])
         print(float(avg_place))
         i += 1
-    
+    cursor.close()
     # protect against divide by 0
     if (i <= 0):
         i = 1
@@ -415,6 +424,7 @@ def update_champ_list():
         g.conn.execute('INSERT INTO owns_champion VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
                        sid[i]["championId"], sid[i]["championLevel"], 0, summoner_name)
     update_ftp()
+    cursor.close()
     return render_template("champions.html", summoner_name=summoner_name, profile_icon=icon, summoner_level=lvl)
 
 
@@ -440,19 +450,23 @@ def showChamps():
     icon = request.args.get('icon')
     lvl = request.args.get('lvl')
     cursor = g.conn.execute('SELECT champion_id, mastery, free_to_play FROM owns_champion WHERE summoner_name=%s', summoner_name)
-    a = []
+    champs = []
+    masteries = []
+    ftp = []
     for x in cursor:
-        c = [x["champion_id"], x["mastery"], x["free_to_play"]]
-        a.append(c)
-
-    return render_template("champions.html", data=a, summoner_name=summoner_name, profile_icon=icon, summoner_level=lvl)
+        champs.append(x["champion_id"])
+        masteries.append(x["mastery"])
+        ftp.append(x["free_to_play"])
+    results = [{"champion_id": m, "mastery": n, "free_to_play": o}
+               for m, n, o in zip(champs, masteries, ftp)]
+    context = dict(data=results)
+    cursor.close()
+    return render_template("champions.html", **context, summoner_name=summoner_name, profile_icon=icon, summoner_level=lvl)
 
 
 # deletes current summoner if it exists and inserts new (potentially updated values)
 def add_summoner(s_id, s_type):
     response = null
-    print("hey")
-    print(s_id)
     if s_type == "puuid":
         response = calls.get_summoner_by_puuid(s_id)
     elif s_type == "encrypted_summoner_id":
@@ -460,7 +474,6 @@ def add_summoner(s_id, s_type):
     elif s_type == "summoner_name":
         response = calls.get_summoner_info(s_id)
     sid = response.json()
-    print(sid["name"])
     g.conn.execute('DELETE FROM summoner WHERE summoner_name=%s', sid["name"])
     g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
                    sid["name"].casefold(), sid["profileIconId"], sid["summonerLevel"],
@@ -489,19 +502,57 @@ def champQuery():
     results = [{"champion_id": m, "mastery": n, "free_to_play": o}
                for m, n, o in zip(champs, masteries, ftp)]
     context = dict(data=results)
+    cursor.close()
     return render_template("champions.html", **context)
+
+
+@app.route('/callSrQuery', methods=['GET'])
+def callChampQuery():
+    return render_template("srmatches.html")
 
 
 @app.route('/srQuery', methods=['POST'])
 def srQuery():
     summoner_name = request.form.get('summoner_name')
-    mastery_min = request.form.get('mastery_min')
-    mastery_max = request.form.get('mastery_max')
-    cs = request.form.get('cd')
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    s_id = ""
+    for x in cursor:
+        s_id = x['encrypted_summoner_id']
+    cs = request.form.get('cs')
     gold_earned = request.form.get('gold_earned')
     champ_level = request.form.get('champ_level')
-    cursor = g.conn.execute('SELECT T.win, P.champion_id, P.kills, P.assists, P.deaths, P.champ_level, P.gold_earned, P.total_minions_killed FROM P participant_plays_on, T team_plays_in, C owns_champion WHERE C.mastery>=%s AND C.mastery<=%s AND P.cs>=%s AND P.gold_earned >=%s AND P.champ_level=%s',
-                            mastery_min, mastery_max, cs, gold_earned, champ_level)
+    print(s_id + " " + cs + " " + gold_earned + " " + champ_level)
+    if s_id == "":
+        cursor = g.conn.execute('SELECT DISTINCT team_plays_in.win, participant_plays_on.summoner_id, participant_plays_on.champion_id, participant_plays_on.kills, participant_plays_on.assists, participant_plays_on.deaths, participant_plays_on.champ_level, participant_plays_on.gold_earned, participant_plays_on.total_minions_killed FROM participant_plays_on, team_plays_in WHERE participant_plays_on.team_id=team_plays_in.team_id AND participant_plays_on.match_id=team_plays_in.match_id AND participant_plays_on.total_minions_killed>=%s AND participant_plays_on.gold_earned>=%s AND participant_plays_on.champ_level=%s;',
+                                cs, gold_earned, champ_level)
+    else:
+        cursor = g.conn.execute('SELECT DISTINCT team_plays_in.win, participant_plays_on.summoner_id, participant_plays_on.champion_id, participant_plays_on.kills, participant_plays_on.assists, participant_plays_on.deaths, participant_plays_on.champ_level, participant_plays_on.gold_earned, participant_plays_on.total_minions_killed FROM participant_plays_on, team_plays_in WHERE participant_plays_on.team_id=team_plays_in.team_id AND participant_plays_on.match_id=team_plays_in.match_id AND participant_plays_on.summoner_id=%s AND participant_plays_on.total_minions_killed>=%s AND participant_plays_on.gold_earned>=%s AND participant_plays_on.champ_level=%s;',
+                                s_id, cs, gold_earned, champ_level)
+    s_id_ = []
+    win = []
+    champ_id_ = []
+    cs_ = []
+    gold_earned_ = []
+    champ_level_ = []
+    for x in cursor:
+        print(x)
+        win.append(x['win'])
+        s_id_.append(x['summoner_id'])
+        champ_id_.append(x['champion_id'])
+        cs_.append(x['total_minions_killed'])
+        gold_earned_.append(x['gold_earned'])
+        champ_level_.append(x['champ_level'])
+    cursor.close()
+    for i in range(len(s_id_)):
+        add_summoner(s_id_[i], "encrypted_summoner_id")
+        cursor = g.conn.execute('SELECT * FROM summoner WHERE encrypted_summoner_id=%s', s_id_[i])
+        for x in cursor:
+            s_id_[i] = x['summoner_name']
+        cursor.close()
+    results = [{"champ_level": m, "gold_earned": o, "cs": p, "champion_id": q, "summoner_name": s, "win": t}
+               for m, o, p, q, s, t in zip(champ_level_, gold_earned_, cs_, champ_id_, s_id_, win)]
+    context = dict(data=results)
+    return render_template("srmatches.html", **context)
 
 
 

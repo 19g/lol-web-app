@@ -34,7 +34,7 @@ def get_summoner_by_puuid(puuid):
 
 
 def get_summoner_by_encrypted_summoner_id(id):
-    url = endpoint_na1 + "/lol/summoner/v4/summoners//" + id
+    url = endpoint_na1 + "/lol/summoner/v4/summoners/" + id
     response = s.get(url)
     return response
 
