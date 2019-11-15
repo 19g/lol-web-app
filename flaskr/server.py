@@ -186,7 +186,7 @@ def populate_sr_match_history():
     return render_template('profile.html')
 
 
-@app.route('analyzeSr', methods=['GET'])
+@app.route('/analyzeSr', methods=['GET'])
 def analyze_sr_match_history():
     return render_template('srmatchhistory.html')
 
@@ -196,10 +196,47 @@ def display_sr_match_history():
     return render_template('sranalysis.html')
 
 
+@app.route('/updateChamps', method=['GET'])
+def update_champ_list():
+    summoner_name = request.args.get('summonerName')
+    add_summoner(summoner_name, "summoner_name")
+    cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
+    s_id = ""
+    for x in cursor:
+        s_id = x['encrypted_summoner_id']
+    response = calls.get_champion_masteries(s_id)
+    sid = response.json()
+    for i in len(sid):
+        g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
+                       sid[i]["champion_id"], [i]["mastery"], sid[i]["summoner_name"])
+    update_ftp()
+    return render_template("champions.html", )
+
+
+# update list of free to play champions
+def update_ftp():
+    response = calls.get_free_champions()
+    sid = response.json()
+    for champ in sid:
+        g.conn.execute('UPDATE owns_champs SET free_to_play=1 WHERE champion_id=%s', champ)
+    return
+
+
+@app.route('/champAnalysis', method=['POST'])
+def analyzeChamps():
+    summoner_name = request.args.get('summonerName')
+
+
+# deletes current summoner if it exists and inserts new (potentially updated values)
 def add_summoner(id, type):
     if type == "puuid":
         response = calls.get_summoner_by_puuid(id)
+    elif type == "encrypted_summoner_id":
+        response = calls.get_summoner_by_encrypted_summoner_id(id)
+    elif type == "summoner_name":
+        response = calls.get_summoner_info(id)
     sid = response.json()
+    g.conn.execute('DELETE FROM summoner WHERE summoner_name=%s', sid["summoner_name"])
     g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
                    sid["summoner_name"], sid["profileIconId"], sid["summonerLevel"],
                    sid["id"], sid["accountId"], sid["puuid"])

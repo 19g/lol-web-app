@@ -1,0 +1,21 @@
+{% extends "profile.html" %}
+{% block content %}
+<a href="/updateChamps?summonerName={{summoner_name}}">Update Champions</a>
+{% block analysis %}
+{% endblock %}
+<table style="border-collapse:collapse;border: 1px solid black;">
+  <tr style="border-collapse:collapse;border: 1px solid black;">
+    <td style="border-collapse:collapse;border: 1px solid black;">Champion ID</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Mastery</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Free to Play?</td>
+  </tr>
+  {% for n in data %}
+  <tr style="border-collapse:collapse;border: 1px solid black;">
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.champion_id}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.mastery}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.free_to_play}}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% endblock %}

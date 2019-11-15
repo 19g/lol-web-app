@@ -33,6 +33,12 @@ def get_summoner_by_puuid(puuid):
     return response
 
 
+def get_summoner_by_encrypted_summoner_id(id):
+    url = endpoint_na1 + "/lol/summoner/v4/summoners//" + id
+    response = s.get(url)
+    return response
+
+
 def get_champion_masteries(encrypted_summoner_id):
     url = endpoint_na1 + "/lol/champion-mastery/v4/champion-masteries/by-summoner/" + encrypted_summoner_id
     response = s.get(url)
