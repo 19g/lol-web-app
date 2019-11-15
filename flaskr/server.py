@@ -249,6 +249,7 @@ def display_tft_match_history():
     last_round = []
     companion = []
     game_datetime = []
+    cursor2 = cursor
     for x in cursor:
         placement.append(x['placement'])
         last_round.append(x['last_round'])
@@ -282,6 +283,7 @@ def display_sr_match_history():
     gold = []
     damage = []
     result = []
+    cursor2 = cursor
     for x in cursor:
         team_str = ""
         if int(x['team_id']) == 100:
