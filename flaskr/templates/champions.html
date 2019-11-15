@@ -1,6 +1,12 @@
 {% extends "profile.html" %}
 {% block content %}
-<a href="/updateChamps?summonerName={{summoner_name}}">Update Champions</a>
+{#<a href="/updateChamps?summonerName={{summoner_name}}&icon={{profile_icon}}&lvl={{summoner_level}}">Update Champions</a>#}
+<form action="/champQuery" method="post">
+  <input type="text" placeholder="Champion ID" name="champ_id">
+  <input type="text" placeholder="Min Mastery" name="mastery_min" required>
+  <input type="text" placeholder="Max Mastery" name="mastery_max">
+  <button type="submit">Search</button>
+</form>
 {% block analysis %}
 {% endblock %}
 <table style="border-collapse:collapse;border: 1px solid black;">

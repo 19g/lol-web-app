@@ -1,0 +1,39 @@
+{% extends "profile.html" %}
+{% block content %}
+{#<a href="/updateChamps?summonerName={{summoner_name}}&icon={{profile_icon}}&lvl={{summoner_level}}">Update Champions</a>#}
+<h1>Search for a match according to the specified criteria:</h1>
+<form action="/srQuery" method="post">
+  <input type="text" placeholder="Summoner Name" name="summoner_id">
+  <input type="text" placeholder="Min Mastery" name="mastery_min">
+  <input type="text" placeholder="Max Mastery" name="mastery_max">
+  <input type="text" placeholder="Minimum CS" name="cs">
+  <input type="text" placeholder="Minimum Gold" name="gold_earned">
+  <input type="text" placeholder="Game Duration" name="champ_level">
+  <button type="submit">Search</button>
+</form>
+{% block analysis %}
+{% endblock %}
+<table style="border-collapse:collapse;border: 1px solid black;">
+  <tr style="border-collapse:collapse;border: 1px solid black;">
+    <td style="border-collapse:collapse;border: 1px solid black;">Result</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Champion ID</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Mastery</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Gold</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">CS</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Champ Level</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Game Duration</td>
+  </tr>
+  {% for n in data %}
+  <tr style="border-collapse:collapse;border: 1px solid black;">
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.result}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.champion_id}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.mastery}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.gold_earned}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.cs}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.champ_level}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.game_duration}}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% endblock %}

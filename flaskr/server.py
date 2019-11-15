@@ -135,6 +135,8 @@ def populate_tft_match_history():
 @app.route('/tftMatchHistory/show', methods=['GET'])
 def display_tft_match_history():
     summoner_name = request.args.get('summonerName')
+    icon = request.args.get('icon')
+    lvl = request.args.get('lvl')
     cursor = g.conn.execute('SELECT * FROM participates_in_tft WHERE summoner_name=%s', summoner_name)
     placement = []
     last_round = []
@@ -154,12 +156,15 @@ def display_tft_match_history():
     cursor2.close()
     cursor.close()
     context = dict(data=matches)
-    return render_template("tftmatchhistory.html", **context, summoner_name=summoner_name)
+    return render_template("tftmatchhistory.html", **context, summoner_name=summoner_name, profile_icon=icon,
+                           summoner_level=lvl)
 
 
 @app.route('/analyzeTft', methods=['GET'])
 def analyze_tft_match_history():
     summoner_name = request.args.get('summonerName')
+    icon = request.args.get('icon')
+    lvl = request.args.get('lvl')
     print(summoner_name)
     cursor = g.conn.execute('SELECT * FROM participates_in_tft WHERE summoner_name=%s', summoner_name)
     avg_place = 0.0
@@ -174,31 +179,14 @@ def analyze_tft_match_history():
     avg_last_round /= i
     print(float(avg_place))
     return render_template("tftanalysis.html", avg_place=str(avg_place), avg_last_round=str(avg_last_round),
-                           summoner_name=summoner_name)
+                           summoner_name=summoner_name, profile_icon=icon, summoner_level=lvl)
 
 
-def analyze_tft(puuid):
-    return render_template("tftmatchhistory.html", puuid)
-
-
-@app.route('/srMatchHistory', methods=['GET'])
-def populate_sr_match_history():
-    return render_template('profile.html')
-
-
-@app.route('/analyzeSr', methods=['GET'])
-def analyze_sr_match_history():
-    return render_template('srmatchhistory.html')
-
-
-@app.route('/srMatchHistory/show', methods=['GET'])
-def display_sr_match_history():
-    return render_template('sranalysis.html')
-
-
-@app.route('/updateChamps', method=['GET'])
+@app.route('/updateChamps', methods=['GET'])
 def update_champ_list():
     summoner_name = request.args.get('summonerName')
+    icon = request.args.get('icon')
+    lvl = request.args.get('lvl')
     add_summoner(summoner_name, "summoner_name")
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
     s_id = ""
@@ -206,41 +194,89 @@ def update_champ_list():
         s_id = x['encrypted_summoner_id']
     response = calls.get_champion_masteries(s_id)
     sid = response.json()
-    for i in len(sid):
-        g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
-                       sid[i]["champion_id"], [i]["mastery"], sid[i]["summoner_name"])
+    for i in range(len(sid)):
+        g.conn.execute('INSERT INTO owns_champion VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING',
+                       sid[i]["championId"], sid[i]["championLevel"], 0, summoner_name)
     update_ftp()
-    return render_template("champions.html", )
+    return render_template("champions.html", summoner_name=summoner_name, profile_icon=icon, summoner_level=lvl)
 
 
 # update list of free to play champions
 def update_ftp():
     response = calls.get_free_champions()
     sid = response.json()
+    i = 0
+    res = -1
     for champ in sid:
-        g.conn.execute('UPDATE owns_champs SET free_to_play=1 WHERE champion_id=%s', champ)
+        if champ[i] == 'f':
+            res = 0
+        elif champ[i] == 't':
+            res = 1
+        g.conn.execute('UPDATE owns_champion SET free_to_play=1 WHERE champion_id=%s', res)
+        i += 1
     return
 
 
-@app.route('/champAnalysis', method=['POST'])
-def analyzeChamps():
+@app.route('/champAnalysis', methods=['GET'])
+def showChamps():
     summoner_name = request.args.get('summonerName')
+    icon = request.args.get('icon')
+    lvl = request.args.get('lvl')
+    cursor = g.conn.execute('SELECT champion_id, mastery, free_to_play FROM owns_champion WHERE summoner_name=%s', summoner_name)
+    a = []
+    for x in cursor:
+        c = [x["champion_id"], x["mastery"], x["free_to_play"]]
+        a.append(c)
+
+    return render_template("champions.html", data=a, summoner_name=summoner_name, profile_icon=icon, summoner_level=lvl)
 
 
 # deletes current summoner if it exists and inserts new (potentially updated values)
-def add_summoner(id, type):
-    if type == "puuid":
-        response = calls.get_summoner_by_puuid(id)
-    elif type == "encrypted_summoner_id":
-        response = calls.get_summoner_by_encrypted_summoner_id(id)
-    elif type == "summoner_name":
-        response = calls.get_summoner_info(id)
+def add_summoner(s_id, s_type):
+    response = null
+    print("hey")
+    print(s_id)
+    if s_type == "puuid":
+        response = calls.get_summoner_by_puuid(s_id)
+    elif s_type == "encrypted_summoner_id":
+        response = calls.get_summoner_by_encrypted_summoner_id(s_id)
+    elif s_type == "summoner_name":
+        response = calls.get_summoner_info(s_id)
     sid = response.json()
-    g.conn.execute('DELETE FROM summoner WHERE summoner_name=%s', sid["summoner_name"])
+    print(sid["name"])
+    g.conn.execute('DELETE FROM summoner WHERE summoner_name=%s', sid["name"])
     g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
-                   sid["summoner_name"], sid["profileIconId"], sid["summonerLevel"],
+                   sid["name"], sid["profileIconId"], sid["summonerLevel"],
                    sid["id"], sid["accountId"], sid["puuid"])
-    return sid["summoner_name"]
+    return sid["name"]
+
+
+@app.route('/champQuery', methods=['POST'])
+def champQuery():
+    print("y")
+    mastery_min = request.form.get('mastery_min')
+    mastery_max = request.form.get('mastery_max')
+    c_id = request.form.get('champ_id')
+    if mastery_max == "":
+        mastery_max = 7
+    if c_id == "":
+        print("1")
+        cursor = g.conn.execute('SELECT * FROM owns_champion WHERE mastery>=%s AND mastery<=%s', mastery_min, mastery_max)
+    else:
+        print("2")
+        cursor = g.conn.execute('SELECT * FROM owns_champion WHERE mastery>=%s AND mastery<=%s AND champion_id=%s', mastery_min, mastery_max, c_id)
+    champs = []
+    masteries = []
+    ftp = []
+    for x in cursor:
+        print(x["champion_id"])
+        champs.append(x["champion_id"])
+        masteries.append(x["mastery"])
+        ftp.append(x["free_to_play"])
+    results = [{"champion_id": m, "mastery": n, "free_to_play": o}
+               for m, n, o in zip(champs, masteries, ftp)]
+    context = dict(data=results)
+    return render_template("champions.html", **context)
 
 
 if __name__ == "__main__":
