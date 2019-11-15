@@ -63,7 +63,7 @@ def home():
 
 @app.route('/getSummoner', methods=['GET'])
 def get_summoner():
-    summoner_name = request.args.get('summonerName')
+    summoner_name = request.args.get('summonerName').casefold()
     # check if summoner name is already in database
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
     results = []
@@ -80,7 +80,7 @@ def get_summoner():
             return render_template("/error.html")
         sid = response.json()
         g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s)',
-                       sid["name"], sid["profileIconId"], sid["summonerLevel"],
+                       sid["name"].casefold(), sid["profileIconId"], sid["summonerLevel"],
                        sid["id"], sid["accountId"], sid["puuid"])
         icon_uri = DATADRAGON_ENDPOINT + "img/profileicon/" + str(sid["profileIconId"]) + ".png"
         return render_template("/profile.html", summoner_name=sid["name"], profile_icon=icon_uri, summoner_level=sid["summonerLevel"])
@@ -92,7 +92,7 @@ def get_summoner():
 
 @app.route('/tftMatchHistory', methods=['GET'])
 def populate_tft_match_history():
-    summoner_name = request.args.get('summonerName')
+    summoner_name = request.args.get('summonerName').casefold()
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
     puuid = ''
     for x in cursor:
@@ -122,7 +122,7 @@ def populate_tft_match_history():
             # get summoner name
             name = add_summoner(participant["puuid"], "puuid")
             g.conn.execute('INSERT INTO participates_in_tft VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
-                        match["metadata"]["match_id"], name, participant["placement"],
+                        match["metadata"]["match_id"], name.casefold(), participant["placement"],
                         participant["last_round"], 1)
             # p = {'match_id': match["metadata"]["match_id"], 'summoner_name': name,
             #      'placement': participant["placement"], 'last_round': participant["last_round"], 'companion': 1}
@@ -130,7 +130,7 @@ def populate_tft_match_history():
             # add to had_traits
             for trait in participant["traits"]:
                 g.conn.execute('INSERT INTO had_traits VALUES (%s, %s, %s, %s, %s)',
-                               match["metadata"]["match_id"], name, trait["name"],
+                               match["metadata"]["match_id"], name.casefold(), trait["name"],
                                trait["tier_current"], trait["num_units"])
                 # t = {'match_id': match["metadata"]["match_id"], 'summoner_name': name, 'name': trait["name"],
                 #      'tier_current': trait["tier_current"], 'num_units': trait["num_units"]}
@@ -138,7 +138,7 @@ def populate_tft_match_history():
             # add to used_tft_champ
             for unit in participant["units"]:
                 g.conn.execute('INSERT INTO used_tft_champ VALUES (%s, %s, %s, %s, %s)',
-                               match["metadata"]["match_id"], name, unit["name"],
+                               match["metadata"]["match_id"], name.casefold(), unit["name"],
                                unit["tier"], unit["items"])
                 # u = {'match_id': match["metadata"]["match_id"], 'summoner_name': unit["name"], 'tier': unit["tier"],
                 #      'items': unit["items"]}
@@ -148,36 +148,50 @@ def populate_tft_match_history():
 
 @app.route('/srMatchHistory', methods=['GET'])
 def populate_sr_match_history():
-    summoner_name = request.args.get('summonerName')
+    summoner_name = request.args.get('summonerName').casefold()
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
     e_a_id = ''
     for x in cursor:
         e_a_id = x['encrypted_account_id']
     cursor.close()
-    #print("e_a_id: " + e_a_id)
+    print("e_a_id: " + e_a_id)
     response = calls.get_sr_match_list(e_a_id, BEGIN_IDX, END_IDX)
     if response.status_code != 200:
         return render_template("/error.html")
     sid = response.json()
     matches = sid['matches']
+    print("matches: ")
+    print(matches)
+    print()
     for match in matches:
+        #print("match: ")
+        #print(match)
+        #print()
         game_id = match['gameId']
-        response = calls.get_sr_match(game_id)
+
+        #print("gameId: ")
+        #print(game_id)
+        #print()
+        response = calls.get_sr_match(str(game_id))
         if response.status_code != 200:
             return render_template("/error.html")
         match_data = response.json()
+        #print("match data: ")
+        #print(match_data)
+        #print()
 
         # TODO: game timestamps are longs in Riot API, ints in our database, may need to fix
-        g.conn.execute('INSERT INTO sr_match VALUES (%s, %s, %s) ON CONFLICT(match_id) DO NOTHING',
-                        match_data['gameId'], int(match_data['gameCreation']), int(match_data['gameDuration']))
+        g.conn.execute('INSERT INTO sr_match VALUES (%s, %s, %s, %s) ON CONFLICT(match_id) DO NOTHING',
+                        str(match_data['gameId']), match_data['gameCreation'], 
+                        match_data['gameDuration'], match_data['seasonId']);
 
         # add to ranked or normal as appropriate:
         queue_id = match_data['queueId']
-        if (queue_id == 420 || queue_id == 440):  # ranked solo/duo, ranked flex
-            g.conn.execute('INSERT INTO sr_ranked VALUES (%s, NULL)', 
+        if (queue_id == 420 or queue_id == 440):  # ranked solo/duo, ranked flex
+            g.conn.execute('INSERT INTO sr_ranked VALUES (%s) ON CONFLICT(match_id) DO NOTHING', 
                            match_data['gameId'])
         else:  # normals
-            g.conn.execute('INSERT INTO sr_normal VALUES (%s)', 
+            g.conn.execute('INSERT INTO sr_normal VALUES (%s) ON CONFLICT(match_id) DO NOTHING', 
                            match_data['gameId'])
 
         # add to team_plays_in:
@@ -187,22 +201,30 @@ def populate_sr_match_history():
                 win_int = 0
             else:
                 win_int = 1
-            ban_list = '{'
-            for ban in team['bans']
-                ban_list += (str(ban['championId'] + ',')
+            ban_list = '{ '
+            for ban in team['bans']:
+                ban_list += (str(ban['championId']) + ',')
             # remove final comma, add closing brace:
             ban_list = ban_list[:-1] + '}'
             drag_int = boolstr_to_int(team['firstDragon'])
             inhib_int = boolstr_to_int(team['firstInhibitor'])
 
-            g.conn.exectue('INSERT INTO team_plays_in (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s)',
-                           match_data['gameId'], team['teamId'],
-                           str(win_int), ban_list, str(drag_int), str(inhib_int(, team['towerKills'],
-                           team['baronKills'], team['riftHeraldKills'], team['dragonKills'])
+            g.conn.execute('INSERT INTO team_plays_in VALUES (%s, %s, %s,%s,%s,%s,%s,%s,%s) ON CONFLICT(match_id, team_id) DO NOTHING',
+                            str(match_data['gameId']), str(team['teamId']),
+                            str(win_int), ban_list, team['towerKills'], team['inhibitorKills'],
+                            team['baronKills'], team['dragonKills'], team['riftHeraldKills'])
 
-
-        # TODO: finish this
-
+        # add to participant plays on:
+        for participant in match_data['participants']:
+            p_id = int(participant['participantId'])
+            p_sid = match_data['participantIdentities'][p_id-1]['player']['summonerId']
+            p_stats = participant['stats']
+            g.conn.execute('INSERT INTO participant_plays_on VALUES (%s,%s,%s, %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(match_id, team_id, summoner_id) DO NOTHING',
+                           str(match_data['gameId']), participant['teamId'], p_sid,
+                           participant['championId'], participant['spell1Id'], participant['spell2Id'],
+                           p_stats['visionScore'], p_stats['kills'], p_stats['assists'], p_stats['deaths'],
+                           p_stats['champLevel'], p_stats['goldEarned'], p_stats['totalMinionsKilled'],
+                           p_stats['totalDamageDealtToChampions'])
 
     return render_template("profile.html", summoner_name=summoner_name)
 
@@ -210,7 +232,7 @@ def populate_sr_match_history():
 
 @app.route('/tftMatchHistory/show', methods=['GET'])
 def display_tft_match_history():
-    summoner_name = request.args.get('summonerName')
+    summoner_name = request.args.get('summonerName').casefold()
     cursor = g.conn.execute('SELECT * FROM participates_in_tft WHERE summoner_name=%s', summoner_name)
     placement = []
     last_round = []
@@ -235,7 +257,7 @@ def display_tft_match_history():
 
 @app.route('/analyzeTft', methods=['GET'])
 def analyze_tft_match_history():
-    summoner_name = request.args.get('summonerName')
+    summoner_name = request.args.get('summonerName').casefold()
     print(summoner_name)
     cursor = g.conn.execute('SELECT * FROM participates_in_tft WHERE summoner_name=%s', summoner_name)
     avg_place = 0.0
@@ -267,7 +289,7 @@ def add_summoner(id, type):
         response = calls.get_summoner_by_puuid(id)
     sid = response.json()
     g.conn.execute('INSERT INTO summoner VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING',
-                   sid["summoner_name"], sid["profileIconId"], sid["summonerLevel"],
+                   sid["summoner_name"].casefold(), sid["profileIconId"], sid["summonerLevel"],
                    sid["id"], sid["accountId"], sid["puuid"])
     return sid["summoner_name"]
 

@@ -53,7 +53,7 @@ def get_sr_match_list(encrypted_account_id, begin_index, end_index):  # end - be
 
 
 def get_sr_match(game_id):
-    url = endpoint_na1 + "/lol/match/v4/timelines/by-match/" + game_id
+    url = endpoint_na1 + "/lol/match/v4/matches/" + game_id
     response = s.get(url)
     return response
 
