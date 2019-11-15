@@ -1,23 +1,27 @@
 {% extends "profile.html" %}
 {% block content %}
-<a href="/analyzeTft?summonerName={{summoner_name}}">Analyze TFT Match History</a>
+<a href="/analyzeSr?summonerName={{summoner_name}}">Analyze SR Match History</a>
 {% block analysis %}
 {% endblock %}
 <table style="border-collapse:collapse;border: 1px solid black;">
   <tr style="border-collapse:collapse;border: 1px solid black;">
-    <td style="border-collapse:collapse;border: 1px solid black;">Result</td>
-    <td style="border-collapse:collapse;border: 1px solid black;">Gold</td>
-    <td style="border-collapse:collapse;border: 1px solid black;">CS</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Team</td>
     <td style="border-collapse:collapse;border: 1px solid black;">Champion</td>
-    <td style="border-collapse:collapse;border: 1px solid black;">Date</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">K/D/A</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">CS</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Gold </td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Damage</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">Result</td>
   </tr>
   {% for n in data %}
   <tr style="border-collapse:collapse;border: 1px solid black;">
-    <td style="border-collapse:collapse;border: 1px solid black;">{{n.win}}</td>
-    <td style="border-collapse:collapse;border: 1px solid black;">{{n.champion_id}}</td>
-    <td style="border-collapse:collapse;border: 1px solid black;">{{n.gold_earned}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.team}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.champ}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.kda}}</td>
     <td style="border-collapse:collapse;border: 1px solid black;">{{n.cs}}</td>
-    <td style="border-collapse:collapse;border: 1px solid black;">{{n.game_datetime}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.gold}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.damage}}</td>
+    <td style="border-collapse:collapse;border: 1px solid black;">{{n.result}}</td>
   </tr>
   {% endfor %}
 </table>
