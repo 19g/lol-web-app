@@ -1,6 +1,7 @@
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
 from flask import Flask, request, render_template, g, redirect, Response
+from flask import send_from_directory
 import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from flaskr import config, calls
@@ -25,7 +26,10 @@ DATADRAGON_ENDPOINT = "http://ddragon.leagueoflegends.com/cdn/" + CURRENT_PATCH
 
 # for SR Match History:
 BEGIN_IDX = 0
-END_IDX   = 20
+END_IDX   = 10
+
+def boolstr_to_int(s):
+    return (int(s == 'true'))
 
 @app.before_request
 def before_request():
@@ -150,12 +154,55 @@ def populate_sr_match_history():
     for x in cursor:
         e_a_id = x['encrypted_account_id']
     cursor.close()
+    #print("e_a_id: " + e_a_id)
     response = calls.get_sr_match_list(e_a_id, BEGIN_IDX, END_IDX)
     if response.status_code != 200:
         return render_template("/error.html")
     sid = response.json()
-    for i in sid:
-        print(sid);
+    matches = sid['matches']
+    for match in matches:
+        game_id = match['gameId']
+        response = calls.get_sr_match(game_id)
+        if response.status_code != 200:
+            return render_template("/error.html")
+        match_data = response.json()
+
+        # TODO: game timestamps are longs in Riot API, ints in our database, may need to fix
+        g.conn.execute('INSERT INTO sr_match VALUES (%s, %s, %s) ON CONFLICT(match_id) DO NOTHING',
+                        match_data['gameId'], int(match_data['gameCreation']), int(match_data['gameDuration']))
+
+        # add to ranked or normal as appropriate:
+        queue_id = match_data['queueId']
+        if (queue_id == 420 || queue_id == 440):  # ranked solo/duo, ranked flex
+            g.conn.execute('INSERT INTO sr_ranked VALUES (%s, NULL)', 
+                           match_data['gameId'])
+        else:  # normals
+            g.conn.execute('INSERT INTO sr_normal VALUES (%s)', 
+                           match_data['gameId'])
+
+        # add to team_plays_in:
+        for team in match_data['teams']:
+            win_int = -1
+            if (team['win'] == 'Fail'):
+                win_int = 0
+            else:
+                win_int = 1
+            ban_list = '{'
+            for ban in team['bans']
+                ban_list += (str(ban['championId'] + ',')
+            # remove final comma, add closing brace:
+            ban_list = ban_list[:-1] + '}'
+            drag_int = boolstr_to_int(team['firstDragon'])
+            inhib_int = boolstr_to_int(team['firstInhibitor'])
+
+            g.conn.exectue('INSERT INTO team_plays_in (%s, %s, %s,%s,%s,%s,%s,%s,%s,%s,%s)',
+                           match_data['gameId'], team['teamId'],
+                           str(win_int), ban_list, str(drag_int), str(inhib_int(, team['towerKills'],
+                           team['baronKills'], team['riftHeraldKills'], team['dragonKills'])
+
+
+        # TODO: finish this
+
 
     return render_template("profile.html", summoner_name=summoner_name)
 
@@ -204,6 +251,11 @@ def analyze_tft_match_history():
     print(float(avg_place))
     return render_template("tftanalysis.html", avg_place=str(avg_place), avg_last_round=str(avg_last_round),
                            summoner_name=summoner_name)
+
+
+@app.route('/favicon.ico')
+def favicon(): 
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
 def analyze_tft(puuid):
