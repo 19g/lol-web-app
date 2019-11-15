@@ -26,7 +26,7 @@ DATADRAGON_ENDPOINT = "http://ddragon.leagueoflegends.com/cdn/" + CURRENT_PATCH
 
 # for SR Match History:
 BEGIN_IDX = 0
-END_IDX   = 10
+END_IDX   = 20
 
 def boolstr_to_int(s):
     return (int(s == 'true'))
@@ -259,7 +259,9 @@ def display_tft_match_history():
 def display_sr_match_history():
     summoner_name = request.args.get('summonerName').casefold()
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
-    e_sid = cursor[0]['encrypted_summoner_id']
+    e_sid = ""
+    for x in cursor:
+        e_sid = x['encrypted_summoner_id']
     cursor = g.conn.execute('SELECT * FROM participant_plays_on WHERE summoner_id=%s', e_sid)
     team = []
     champion = []
@@ -270,33 +272,33 @@ def display_sr_match_history():
     result = []
     for x in cursor:
         team_str = ""
-        if x['team_id'] == 100:
-            team_str = blue
+        if int(x['team_id']) == 100:
+            team_str = "Blue"
         else:
-            team_str = red
-        team.append(team_str)
-        team.append(x['team_id'])
-        champion.append(x['champion_id'])
+            team_str = "Red"
+        team.insert(0, team_str)
+        champion.insert(0, x['champion_id'])
         kills = x['kills']
         deaths = x['deaths']
         assists = x['assists']
-        kda_str = str(kills) + "/" str(deaths) + "/" + str(assists)
-        kda.append(kda_str)
-        cs.append(x['total_minions_killed'])
-        gold.append(x['gold_earned'])
-        damage.append(x['total_damage_dealt_to_champions '])
+        kda_str = str(kills) + "/" + str(deaths) + "/" + str(assists)
+        kda.insert(0, kda_str)
+        cs.insert(0, x['total_minions_killed'])
+        gold.insert(0, x['gold_earned'])
+        damage.insert(0, x['total_damage_dealt_to_champions'])
 
         cursor2 = g.conn.execute('SELECT * FROM team_plays_in WHERE match_id=%s AND team_id=%s',
                                  x['match_id'], x['team_id'])
         win_str = ""
-        if cursor2[0]['win'] == 1:
-            win_str = "Win"
-        else:
-            win_str = "Loss"
-        result.append(win_str)
+        for y in cursor2:
+            if int(y['win']) == 1:
+                win_str = "Win"
+            else:
+                win_str = "Loss"
+        result.insert(0, win_str)
 
-    matches = [{"team": t, "champ": c, "kda": k, "cs": s, "gold": g, "damage": d, "result":, r}
-               for t, c, k, s, g, d, r in zip(team, kda, cs, gold, damage, result)]
+    matches = [{"team": t, "champ": c, "kda": k, "cs": s, "gold": g, "damage": d, "result": r}
+               for t, c, k, s, g, d, r in zip(team, champion, kda, cs, gold, damage, result)]
 
     context = dict(data=matches)
 
@@ -310,7 +312,9 @@ def display_sr_match_history():
 def analyze_sr_match_history():
     summoner_name = request.args.get('summonerName').casefold()
     cursor = g.conn.execute('SELECT * FROM summoner WHERE summoner_name=%s', summoner_name)
-    e_sid = cursor[0]['encrypted_summoner_id']
+    e_sid = ""
+    for x in cursor:
+        e_sid = x['encrypted_summoner_id']
     wins = 0
     k = 0
     d = 0
@@ -330,29 +334,33 @@ def analyze_sr_match_history():
 
         cursor2 = g.conn.execute('SELECT * FROM team_plays_in WHERE match_id=%s AND team_id=%s',
                                  x['match_id'], x['team_id'])
-
-        wins += cursor2[0]['win']
-
+        for y in cursor2:
+            wins += int(y['win'])
+        
         count += 1
 
     cursor.close()
     cursor2.close()
+
+    # protect against divide by 0:
+    if (count <= 0 ):
+        count = 1
 
     win_rate = float(wins/count)
     k_avg = float(k/count)
     d_avg = float(d/count)
     a_avg = float(a/count)
     cs_avg = float(cs/count)
-    damage_agv = float(damage/count)
+    damage_avg = float(damage/count)
     gold_avg = float(gold/count)
-    kda = str(k_agv) + "/" + str(d_avg) + "/" + str(a_avg)
+    kda = str(k_avg) + "/" + str(d_avg) + "/" + str(a_avg)
 
     return render_template("sranalysis.html", 
                            win_rate=str(win_rate), 
                            kda=kda,
                            cs_avg=str(cs_avg),
                            damage_avg=str(damage_avg),
-                           gold_avg=str(gold_avg)
+                           gold_avg=str(gold_avg),
                            summoner_name=summoner_name)
 
 
@@ -369,6 +377,11 @@ def analyze_tft_match_history():
         avg_last_round += float(x['last_round'])
         print(float(avg_place))
         i += 1
+    
+    # protect against divide by 0
+    if (i <= 0):
+        i = 1
+
     avg_place /= i
     avg_last_round /= i
     print(float(avg_place))
